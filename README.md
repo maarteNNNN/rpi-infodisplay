@@ -1,4 +1,4 @@
-# rpi-infodisplay TEST
+# rpi-infodisplay
 
 ## RPi OS
 
@@ -8,9 +8,9 @@ Rasberry Pi OS lite installeren met rpi-imager
 $ sudo rpi-imager
 ```
 
-Choose Raspberry PI 5 to install
+Choose Raspberry PI 5 to install (also for PI 3 B+)
 
-OS: Other > Raspberry PI OS Lite (64-bit) NOT Legacy
+OS: Other > Raspberry PI OS Lite (64-bit) NOT Legacy!
 
 User: edugo 3...9
 No wifi config
@@ -68,105 +68,71 @@ $ npm --version
 
 ```sh
 $ sudo apt install git
+$ sudo apt install libgtk-3-0
+$ sudo apt install upower
+$ sudo apt install pulseaudio
 
 ```
 
 ## Audio > HDMI
 
 ```sh
+
 $ sudo raspi-config
 
 ```
 
 System Options > Audio > vc4-hdmi
 
-## Install rpi-infodisplay
+## Install / Update rpi-infodisplay
+
+```
+cd ~ && \
+rm -rf rpi-infodisplay && \
+git clone https://github.com/johancoppens/rpi-infodisplay.git && \
+cd rpi-infodisplay && \
+npm install
+
+```
+
+## Configure X
+
+Edit .bashrc to start X on login
+
+```
+$ nano .bashrc
+...
+if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = 1 ]; then
+  exec startx -- -nolisten tcp -s 0 dpms -nocursor
+fi
+
+```
+
+Edit .xinitrc to start rpi-infodisplay when X starts
+
+```
+$ nano .xinitrc
+...
+cd /home/edugo/rpi-infodisplay/ && exec npm run start
+
+```
+
+Auto login user edugo
+
+```
+sudo raspi-config
+```
+
+System Options > Boot / Auto Login > Text console, automatically logged in as 'edugo' user
 
 ## Audio set volume
 
-# Sound Packages
-
-NOT NEEDED already installed!
-
-```sh
-$ sudo apt install libasound2
+```
+$ alsamixer
 ```
 
-## OpenGL
-
-sudo raspi-config
-Advanced options -> GL driver
-
-rpi-chromium-mods???
-
-scp -r pi@10.5.0.3:/home/pi/app ~/app
-
-# Start X from SSH
-
-edit
+## Restart X
 
 ```
-sudo nano /etc/X11/Xwrapper.config
+$ pkill X
 ```
-
-```
-allowed_users=anybody
-
-```
-
-Now you can start x remotely over ssh with
-
-```
-$ sudo DISPLAY=:0.0 startx
-```
-
-# IP Address
-
-Op de Pi.
-
-```
-$ ip addr
-```
-
-Inloggen met ssh
-
-```
-$ ssh edugo@10.21.10.119
-
-```
-
-Instellen IP met raspi-config
-
-```
-$ sudo raspi-config
-```
-
-Advanced Options > Network Config > Network Manager
-
-TODO: FIxed IP
-
-# Notities Maarten
-
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
-exit
-sudo raspi-config
-ip addr
-nvm install 18
-
-sudo apt install -y libgtk-3-0 libnotify4 libgconf-2-4 libnss3 libgtk2.0-0 libxss1 libasound2 x-window-system rpi-chromium-mods
-nano .bashrc
-
-pi@raspberrypi:~ $ cat .xinitrc
-cd /home/pi/app && exec npm run nieuwe -nocursor -nolisten tcp "$@"
-
-Onderaan in .bashrc toevoegen, als het SSH is open hij startx niet
-if ! [ -n "$SSH_CLIENT" ] || ! [ -n "$SSH_TTY" ]; then
-SESSION_TYPE=remote/ssh
-startx -- -nolisten tcp -s 0 dpms -nocursor
-fi
-
-Remote pi naar deze kopieren$ scp -rp pi@10.5.0.3:/home/pi/app/\* ~/app
-$ cd ~/app
-$ rm -rf node_modules package-lock.json
-$ npm i
-$ nano ~/app/src/nieuwedisplay.js
