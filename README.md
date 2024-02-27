@@ -17,6 +17,16 @@ No wifi config
 Keyboard / timezone Belgie
 Enable ssh
 
+Boot
+
+```
+$ sudo apt update
+$ sudo apt full-upgrade
+
+```
+
+Reboot
+
 ## X Windows
 
 ```
@@ -82,7 +92,8 @@ $ sudo raspi-config
 
 ```
 
-System Options > Audio > vc4-hdmi
+RPI 4: System Options > Audio > vc4-hdmi
+RPI 5: System Options > Audio > vc4-hdmi-0 or 1
 
 ## Install / Update rpi-infodisplay
 
@@ -100,7 +111,7 @@ npm install
 Edit .bashrc to start X on login
 
 ```
-$ nano .bashrc
+$ nano ~/.bashrc
 ...
 if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = 1 ]; then
   exec startx -- -nolisten tcp -s 0 dpms -nocursor
@@ -111,7 +122,7 @@ fi
 Edit .xinitrc to start rpi-infodisplay when X starts
 
 ```
-$ nano .xinitrc
+$ nano ~/.xinitrc
 ...
 cd /home/edugo/rpi-infodisplay/ && exec npm run start
 
