@@ -195,8 +195,8 @@ const createMainWindow = () => {
   });
   // debugger;
   mainWindow.loadURL(
-    // 'https://docs.google.com/presentation/d/e/2PACX-1vSFVVS4yw0fOsf6667kFgh7iLzm2Y-rQEcSdx5L6qccDEz8lgNZYhSj3uiJvoIQQz7VrnaGNudpAA8H/pub?start=true&loop=true&delayms=3000'
-    'https://display.edugolo.be'
+    'https://docs.google.com/presentation/d/e/2PACX-1vSFVVS4yw0fOsf6667kFgh7iLzm2Y-rQEcSdx5L6qccDEz8lgNZYhSj3uiJvoIQQz7VrnaGNudpAA8H/pub?start=true&loop=true&delayms=3000'
+    // 'https://display.edugolo.be'
   );
 
   // win.setFullScreen(true);
