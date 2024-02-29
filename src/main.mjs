@@ -28,7 +28,8 @@ let mainWindow = null;
 let consoleWindow = null;
 
 const socket = client.create({
-  hostname: 'api.dev.edugolo.be',
+  // hostname: 'api.dev.edugolo.be',
+  host: '10.21.10.80',
   // hostname: 'localhost',
   port: 443,
   // port: 8000,
