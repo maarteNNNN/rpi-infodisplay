@@ -1,17 +1,18 @@
 import * as client from 'socketcluster-client';
 
 const socket = client.create({
-  hostname: 'api.dev.edugolo.be',
+  // hostname: 'api.dev.edugolo.be',
+  host: '10.21.10.80:8000',
   // hostname: 'localhost',
-  port: 443,
+  // port: 443,
   // port: 8000,
-  secure: true,
+  // secure: true,
   // Only necessary during debug if using a self-signed certificate
-  wsOptions: { rejectUnauthorized: false },
-  // autoReconnectOptions: {
-  //   initialDelay: 1000, // in milliseconds
-  //   maxDelay: 2000, // in milliseconds
-  // },
+  // wsOptions: { rejectUnauthorized: false },
+  autoReconnectOptions: {
+    initialDelay: 1000, // in milliseconds
+    maxDelay: 2000, // in milliseconds
+  },
 });
 (async () => {
   for await (const event of socket.listener('connect')) {
