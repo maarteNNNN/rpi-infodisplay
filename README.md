@@ -123,9 +123,10 @@ Edit .xinitrc to start rpi-infodisplay when X starts
 
 ```
 $ nano ~/.xinitrc
-...
-cd /home/edugo/rpi-infodisplay/ && exec npm run start
-
+...sh
+xrandr -s 1920x1080
+cd /home/edugo/rpi-infodisplay/
+exec npm run start
 ```
 
 Auto login user edugo
