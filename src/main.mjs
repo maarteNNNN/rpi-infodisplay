@@ -1,40 +1,51 @@
-// const { app, BrowserWindow, dialog, screen } = require('electron');
-// const path = require('path');
-// const client = require('socketcluster-client');
-// const macaddress = require('macaddress');
-// const hwid = require('hwid');
-// const ip = require('ip');
-// const os = require('os');
-// const sh = require('child_process');
-// const cron = require('node-cron');
-import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron';
-import { dirname, join } from 'path';
-import * as client from 'socketcluster-client';
-// import { all } from 'macaddress';
-// import { getHWID } from 'hwid';
-
-// import macaddress from 'macaddress';
-// const { all: getAllMacs } = macaddress;
-
-import * as si from 'systeminformation';
-
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  screen,
+  desktopCapturer,
+  session,
+} from 'electron';
+import * as scClient from 'socketcluster-client';
+import * as sysInfo from 'systeminformation';
 import * as path from 'path';
-
 import { fileURLToPath } from 'url';
+import { readFile, writeFile } from 'node:fs/promises';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let mainWindow = null;
-let consoleWindow = null;
+let infoWindow = null;
 
-const socket = client.create({
+const getSystemInfo = async () => {
+  const si = await sysInfo.get({
+    cpu: 'manufacturer, brand, vendor, family, model, revision',
+    osInfo: 'platform, distro, release, codename, kernel, arch, serial', //'platform, release',
+    system: 'manufacturer, model',
+    networkInterfaces: 'iface, ifaceName, ip4, mac, type, default',
+  });
+  si.defaultNetworkInterface = si.networkInterfaces.find((iface) => {
+    return iface.default === true;
+  });
+  delete si.networkInterfaces;
+  return {
+    serial: si.osInfo.serial,
+    system: si,
+  };
+};
+
+const systemInfo = await getSystemInfo();
+const config = JSON.parse(await readFile('./config.json', 'utf-8'));
+
+const socket = scClient.create({
+  host: config.controller ?? 'localhost:8000',
+  // hostname: '10.21.10.80',
+  // port: config.display.controller.port ?? '8000',
   // hostname: 'api.dev.edugolo.be',
-  host: '10.21.10.80:8000',
-  // hostname: 'localhost',
   // port: 443,
-  // port: 8000,
   // secure: true,
-  // Only necessary during debug if using a self-signed certificate
+  // // Only necessary during debug if using a self-signed certificate
   // wsOptions: { rejectUnauthorized: false },
   autoReconnectOptions: {
     initialDelay: 1000, // in milliseconds
@@ -50,11 +61,39 @@ const socket = client.create({
       // router.push({ name: 'login'})
       // window.location.replace(`http://localhost:9000`);
     }
+
     (async () => {
-      let channel = socket.subscribe('foo');
-      for await (let data of channel) {
+      let result;
+      try {
+        result = await socket.invoke('devices/announce', {
+          systemInfo,
+          config,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+
+    (async () => {
+      for await (let data of socket.subscribe(
+        `devices/channel:${systemInfo.serial}`
+      )) {
         console.log(data);
-        actions[data.action](data.payload);
+        try {
+          actions[data.action](data);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    })();
+    (async () => {
+      for await (let data of socket.subscribe(`devices/channel:all`)) {
+        console.log(data);
+        try {
+          actions[data.action](data.payload);
+        } catch (e) {
+          console.error('error');
+        }
       }
     })();
   }
@@ -76,131 +115,93 @@ const socket = client.create({
 })();
 (async () => {
   for await (const event of socket.listener('error')) {
-    console.log(event.error);
+    // console.log(event.error);
   }
 })();
 
 const actions = {
-  loadURL: (payload) => {
-    mainWindow.loadURL(payload.url);
-  },
-  hello: (payload) => {
-    console.log(payload.message);
+  changeUrl: (data) => {
+    mainWindow.loadURL(data.payload.url);
   },
   reload: () => {
+    console.log('reload');
     mainWindow.reload();
   },
   reboot: () => {
     console.log('reboot');
   },
   toggleDevtools: () => {
-    console.log(mainWindow.webContents.isDevToolsOpened());
-    debugger;
     if (!mainWindow.webContents.isDevToolsOpened()) {
       mainWindow.webContents.openDevTools();
     } else {
       mainWindow.webContents.closeDevTools();
     }
   },
-  getDeviceProps: async () => {
-    console.log('getDeviceProps');
-    // console.log(await getAllMacs());
-    // console.log(await getHWID());
-    // console.log(await si.cpu());
-    // console.log(await si.osInfo());
-    // console.log(await si.cpuCurrentSpeed());
-
-    // https://systeminformation.io/
-    const res = await si.get({
-      cpu: 'manufacturer, brand, vendor, family, model, revision',
-      osInfo: 'platform, distro, release, codename, kernel, arch, serial', //'platform, release',
-      system: 'manufacturer, model',
-      networkInterfaces: 'iface, ifaceName, ip4, mac, type, default',
-    });
-    res.defaultNetworkInterface = res.networkInterfaces.find((iface) => {
-      return iface.default === true;
-    });
-    delete res.networkInterfaces;
-    setConsoleText(JSON.stringify(res, null, 2));
-  },
-  toggleConsoleWindow: () => {
-    if (!consoleWindow.isVisible()) {
-      consoleWindow.show();
+  // showDeviceProps: async () => {
+  //   setInfoText(JSON.stringify(device, null, 2));
+  // },
+  toggleInfoWindow: () => {
+    if (!infoWindow.isVisible()) {
+      setInfoText(
+        JSON.stringify({ config: config, device: systemInfo }, null, 2)
+      );
+      infoWindow.show();
     } else {
-      consoleWindow.hide();
+      infoWindow.hide();
     }
   },
   locate: async () => {
     console.log('locate');
-    setConsoleText('locate');
+    setInfoText('locate');
   },
-  getScreenshot: async () => {
-    console.log('getScreenshot');
+  getScreenshot: async (data) => {
+    console.log('getScreenshot', data);
     const image = await mainWindow.webContents.capturePage();
-    console.log(image);
+    // const sources = await desktopCapturer.getSources({
+    //   types: ['screen'],
+    //   thumbnailSize: { width: 600, height: 400 },
+    // });
+    // const image = sources[0].thumbnail;
+    try {
+      // await writeFile('./screenshot.png', image.toPNG());
+
+      socket.transmitPublish(`devices/confirmationChannel:${data.messageId}`, {
+        message: 'confirmation ',
+        image: image.toPNG(),
+      });
+      // debugger;
+    } catch (error) {
+      console.log('here', error);
+    }
+
+    // console.log(image);
+    // debugger;
+  },
+  disconnect: () => {
+    socket.disconnect();
   },
 };
 
-const setConsoleText = (text) => {
-  consoleWindow.webContents.send('setConsoleText', text);
+const setInfoText = (text) => {
+  infoWindow.webContents.send('setInfoText', text);
 };
 
-// dialog.showErrorBox = function (title, content) {
-//   console.log(`${title}\n${content}`);
-// };
-
-// /**
-//  * At 07:30 on every day-of-week from Monday through Friday
-//  * in every month from January through June
-//  * and every month from September through December. */
-// const reboot = cron.schedule('30 7 * JAN-JUN,SEP-DEC MON-FRI', () => {
-//   console.log('Reboot');
-//   sh.exec('sudo /sbin/shutdown -r now', function (msg) {
-//     socket.publish(mac, { msg: `Rebooting now! ${msg}` });
-//   });
-// });
-
-// /**
-//  * At 17:00 on every day-of-week from Monday through Friday
-//  * in every month from January through June
-//  * and every month from September through December.
-//  */
-// const hdmi = cron.schedule('0 17 * JAN-JUN,SEP-DEC MON-FRI', () => {
-//   console.log('Turn off HDMI');
-//   sh.exec('sudo tvservice -o', function (msg) {
-//     // socket.publish(mac, { msg: `Rebooting now! ${msg}` })
-//     console.log(`Turning off HDMI ${msg}`);
-//   });
-// });
-
-// reboot.start();
-// hdmi.start();
+// dialog.showErrorBo
 
 const createMainWindow = () => {
-  // win = new BrowserWindow({
-  //   width: 1920,
-  //   height: 1080,
-  //   webPreferences: {
-  //     plugins: true,
-  //   },
-  // });
   const display = screen.getPrimaryDisplay();
   mainWindow = new BrowserWindow({
-    x: display.bounds.x,
-    y: display.bounds.y,
-    width: display.size.width * 0.75, // + 1,
-    height: display.size.height * 0.75,
-    // fullscreen: true,
+    // x: 20, // display.bounds.x,
+    // y: 20, // display.bounds.y,
+    // width: display.size.width + 1,
+    // height: display.size.height,
+    fullscreen: config.fullscreen ?? true,
+    frame: config.frame ?? false,
     // focusable: false, // On Linux: false makes the window stop interacting with wm, so the window will always stay on top in all workspaces.
   });
   // debugger;
-  mainWindow.loadURL(
-    'https://docs.google.com/presentation/d/e/2PACX-1vSFVVS4yw0fOsf6667kFgh7iLzm2Y-rQEcSdx5L6qccDEz8lgNZYhSj3uiJvoIQQz7VrnaGNudpAA8H/pub?start=true&loop=true&delayms=3000'
-    // 'https://display.edugolo.be'
-  );
-
-  // win.setFullScreen(true);
-  // debugger;
+  // mainWindow.setFullScreen(true);
+  mainWindow.loadURL(config.url ?? 'https://edugolo.be');
 
   // Hide cursor in webpage
   mainWindow.webContents.on('dom-ready', (event) => {
@@ -211,25 +212,45 @@ const createMainWindow = () => {
 };
 
 const createConsoleWindow = () => {
-  consoleWindow = new BrowserWindow({
+  infoWindow = new BrowserWindow({
     parent: mainWindow,
+    // x: mainWindow.getBounds().x,
+    // y: mainWindow.getBounds().y,
+    // width: mainWindow.getBounds().width,
+    // height: mainWindow.getBounds().height + 50,
     show: false,
+    transparent: true,
+    frame: false,
+    backgroundColor: '#00FFFFFF',
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegrationInWorker: true,
       contextIsolation: true,
     },
   });
-  consoleWindow.loadFile(path.join(__dirname, 'top.html'));
-  consoleWindow.webContents.openDevTools();
+  infoWindow.loadFile(path.join(__dirname, 'info.html'));
+  // infoWindow.webContents.openDevTools();
 };
 
 // Suppress GetVSyncParametersIfAvailable() errors
 // app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('disable-gpu');
 
-app.on('ready', () => {
+app.on('ready', async () => {
   createMainWindow();
-
   createConsoleWindow();
+  // device = await getDeviceInfo();
+  // await setupWebsocket();
+  console.log('App ready');
+});
+
+app.on('before-quit', async (e) => {
+  try {
+    e.preventDefault();
+    // debugger;
+    await socket.invoke('devices/goodbye', { serial: systemInfo.serial });
+    app.exit();
+  } catch (error) {
+    console.error(error);
+  }
 });

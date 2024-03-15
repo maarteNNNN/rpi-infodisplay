@@ -1,0 +1,10 @@
+{
+  "name": "",
+  "location": "",
+  "url": "https://display.edugolo.be",
+  "fullscreen": false,
+  "frame": true,
+  "fullscreen": false,
+  "frame": true,
+  "controller": "localhost:8000"
+}
