@@ -148,3 +148,9 @@ $ alsamixer
 ```
 $ pkill X
 ```
+
+## TODO
+
+cron hdmi
+
+show info at boot for 15 secs
