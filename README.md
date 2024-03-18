@@ -95,6 +95,8 @@ $ sudo raspi-config
 RPI 4: System Options > Audio > vc4-hdmi
 RPI 5: System Options > Audio > vc4-hdmi-0 or 1
 
+HDMI0 is de poort naast USB-C
+
 ## Install / Update rpi-infodisplay
 
 ```
@@ -103,6 +105,13 @@ rm -rf rpi-infodisplay && \
 git clone https://github.com/johancoppens/rpi-infodisplay.git && \
 cd rpi-infodisplay && \
 npm install
+
+```
+
+Optionally switch to other branch
+
+```
+$ git checkout standalone
 
 ```
 

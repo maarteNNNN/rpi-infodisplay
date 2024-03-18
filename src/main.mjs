@@ -182,6 +182,22 @@ const actions = {
   },
 };
 
+const showInfoWindowOnStartup = async () => {
+  // if (config.showInfoOnStartup) {
+  //   infoWindow.show();
+  // }
+  // if (!infoWindow.isVisible()) {
+  setInfoText(JSON.stringify({ config: config, device: systemInfo }, null, 2));
+  debugger;
+  infoWindow.show();
+  // } else {
+  //   infoWindow.hide();
+  // }
+  setTimeout(() => {
+    infoWindow.hide();
+  }, 10000);
+};
+
 const setInfoText = (text) => {
   infoWindow.webContents.send('setInfoText', text);
 };
@@ -191,10 +207,10 @@ const setInfoText = (text) => {
 const createMainWindow = () => {
   const display = screen.getPrimaryDisplay();
   mainWindow = new BrowserWindow({
-    // x: 20, // display.bounds.x,
-    // y: 20, // display.bounds.y,
-    // width: display.size.width + 1,
-    // height: display.size.height,
+    x: display.bounds.x,
+    y: display.bounds.y,
+    width: display.size.width + 1,
+    height: display.size.height,
     fullscreen: config.fullscreen ?? true,
     frame: config.frame ?? false,
     // focusable: false, // On Linux: false makes the window stop interacting with wm, so the window will always stay on top in all workspaces.
@@ -211,13 +227,13 @@ const createMainWindow = () => {
   // mainWindow.webContents.openDevTools();
 };
 
-const createConsoleWindow = () => {
+const createInfoWindow = () => {
   infoWindow = new BrowserWindow({
     parent: mainWindow,
-    // x: mainWindow.getBounds().x,
-    // y: mainWindow.getBounds().y,
-    // width: mainWindow.getBounds().width,
-    // height: mainWindow.getBounds().height + 50,
+    x: mainWindow.getBounds().x,
+    y: mainWindow.getBounds().y,
+    width: mainWindow.getBounds().width,
+    height: mainWindow.getBounds().height,
     show: false,
     transparent: true,
     frame: false,
@@ -230,6 +246,9 @@ const createConsoleWindow = () => {
   });
   infoWindow.loadFile(path.join(__dirname, 'info.html'));
   // infoWindow.webContents.openDevTools();
+  infoWindow.on('ready-to-show', () => {
+    showInfoWindowOnStartup();
+  });
 };
 
 // Suppress GetVSyncParametersIfAvailable() errors
@@ -238,7 +257,7 @@ app.commandLine.appendSwitch('disable-gpu');
 
 app.on('ready', async () => {
   createMainWindow();
-  createConsoleWindow();
+  createInfoWindow();
   // device = await getDeviceInfo();
   // await setupWebsocket();
   console.log('App ready');
