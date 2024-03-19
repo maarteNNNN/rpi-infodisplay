@@ -1,8 +1,9 @@
 {
   "name": "",
   "location": "",
-  "url": "https://display.edugolo.be",
+  "url": "https://google.be",
   "fullscreen": true,
   "frame": false,
-  "controller": "localhost:8000"
+  "controller": "displays.edugolo.be:8000",
+  "refreshCronExpression": "0 0 * * * *"
 }

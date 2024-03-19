@@ -1,22 +1,25 @@
 import {
   app,
   BrowserWindow,
-  dialog,
-  ipcMain,
+  // dialog,
+  // ipcMain,
   screen,
-  desktopCapturer,
-  session,
+  // desktopCapturer,
+  // session,
 } from 'electron';
 import * as scClient from 'socketcluster-client';
 import * as sysInfo from 'systeminformation';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { readFile, writeFile } from 'node:fs/promises';
+import { CronJob } from 'cron';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let mainWindow = null;
 let infoWindow = null;
+
+// Utility functions
 
 const getSystemInfo = async () => {
   const si = await sysInfo.get({
@@ -38,11 +41,10 @@ const getSystemInfo = async () => {
 const systemInfo = await getSystemInfo();
 const config = JSON.parse(await readFile('./config.json', 'utf-8'));
 
+// Socketcluster client setup
+
 const socket = scClient.create({
   host: config.controller ?? 'localhost:8000',
-  // hostname: '10.21.10.80',
-  // port: config.display.controller.port ?? '8000',
-  // hostname: 'api.dev.edugolo.be',
   // port: 443,
   // secure: true,
   // // Only necessary during debug if using a self-signed certificate
@@ -52,16 +54,16 @@ const socket = scClient.create({
     maxDelay: 2000, // in milliseconds
   },
 });
+
 (async () => {
   for await (const event of socket.listener('connect')) {
     console.log(`Connected to server with socket id ${socket.id}`);
     console.log(`Authenticated?: ${event.isAuthenticated}`);
 
     if (!event.isAuthenticated) {
-      // router.push({ name: 'login'})
-      // window.location.replace(`http://localhost:9000`);
     }
 
+    // Send device announcement
     (async () => {
       let result;
       try {
@@ -74,6 +76,7 @@ const socket = scClient.create({
       }
     })();
 
+    // Subscribe to private channel, where actions can be tranmitted to
     (async () => {
       for await (let data of socket.subscribe(
         `devices/channel:${systemInfo.serial}`
@@ -86,49 +89,38 @@ const socket = scClient.create({
         }
       }
     })();
-    (async () => {
-      for await (let data of socket.subscribe(`devices/channel:all`)) {
-        console.log(data);
-        try {
-          actions[data.action](data.payload);
-        } catch (e) {
-          console.error('error');
-        }
-      }
-    })();
   }
 })();
+
 (async () => {
   for await (const event of socket.listener('disconnect')) {
     console.log('Disconnected from server');
   }
 })();
+
 (async () => {
   for await (const event of socket.listener('authStateChange')) {
     console.log(`authStateChange ${socket.id}`);
-    // if (event.newAuthState === 'authenticated') {
-    //   router.push({ name: 'chat' });
-    // } else {
-    //   router.push({ name: 'login' });
-    // }
   }
 })();
+
 (async () => {
   for await (const event of socket.listener('error')) {
     // console.log(event.error);
   }
 })();
 
+// Actions
+
 const actions = {
-  changeUrl: (data) => {
+  changeUrl: async (data) => {
     mainWindow.loadURL(data.payload.url);
+    config.url = data.payload.url;
+    // JSON.parse(await readFile('./config.json', 'utf-8'));
+    await writeFile('./config.json', JSON.stringify(config, null, 2), 'utf-8');
   },
-  reload: () => {
-    console.log('reload');
+  refresh: () => {
     mainWindow.reload();
-  },
-  reboot: () => {
-    console.log('reboot');
   },
   toggleDevtools: () => {
     if (!mainWindow.webContents.isDevToolsOpened()) {
@@ -137,34 +129,13 @@ const actions = {
       mainWindow.webContents.closeDevTools();
     }
   },
-  // showDeviceProps: async () => {
-  //   setInfoText(JSON.stringify(device, null, 2));
-  // },
-  toggleInfoWindow: () => {
-    if (!infoWindow.isVisible()) {
-      setInfoText(
-        JSON.stringify({ config: config, device: systemInfo }, null, 2)
-      );
-      infoWindow.show();
-    } else {
-      infoWindow.hide();
-    }
-  },
-  locate: async () => {
-    console.log('locate');
-    setInfoText('locate');
+  showInfo: () => {
+    showInfoWindow();
   },
   getScreenshot: async (data) => {
     console.log('getScreenshot', data);
     const image = await mainWindow.webContents.capturePage();
-    // const sources = await desktopCapturer.getSources({
-    //   types: ['screen'],
-    //   thumbnailSize: { width: 600, height: 400 },
-    // });
-    // const image = sources[0].thumbnail;
     try {
-      // await writeFile('./screenshot.png', image.toPNG());
-
       socket.transmitPublish(`devices/confirmationChannel:${data.messageId}`, {
         message: 'confirmation ',
         image: image.toPNG(),
@@ -173,37 +144,24 @@ const actions = {
     } catch (error) {
       console.log('here', error);
     }
-
-    // console.log(image);
-    // debugger;
-  },
-  disconnect: () => {
-    socket.disconnect();
   },
 };
 
-const showInfoWindowOnStartup = async () => {
-  // if (config.showInfoOnStartup) {
-  //   infoWindow.show();
-  // }
-  // if (!infoWindow.isVisible()) {
+// Shows Info for 10secs
+const showInfoWindow = async () => {
   setInfoText(JSON.stringify({ config: config, device: systemInfo }, null, 2));
-  debugger;
   infoWindow.show();
-  // } else {
-  //   infoWindow.hide();
-  // }
   setTimeout(() => {
     infoWindow.hide();
   }, 10000);
 };
 
+// Set text InfoWindow
 const setInfoText = (text) => {
   infoWindow.webContents.send('setInfoText', text);
 };
 
-// dialog.showErrorBo
-
+// Electron windows create functions
 const createMainWindow = () => {
   const display = screen.getPrimaryDisplay();
   mainWindow = new BrowserWindow({
@@ -224,7 +182,10 @@ const createMainWindow = () => {
     let css = '* { cursor: none !important; }';
     mainWindow.webContents.insertCSS(css);
   });
-  // mainWindow.webContents.openDevTools();
+
+  mainWindow.on('ready-to-show', () => {
+    setupCronjobs();
+  });
 };
 
 const createInfoWindow = () => {
@@ -245,31 +206,39 @@ const createInfoWindow = () => {
     },
   });
   infoWindow.loadFile(path.join(__dirname, 'info.html'));
-  // infoWindow.webContents.openDevTools();
   infoWindow.on('ready-to-show', () => {
-    showInfoWindowOnStartup();
+    showInfoWindow();
   });
 };
 
-// Suppress GetVSyncParametersIfAvailable() errors
-// app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('disable-gpu');
 
 app.on('ready', async () => {
   createMainWindow();
   createInfoWindow();
-  // device = await getDeviceInfo();
-  // await setupWebsocket();
   console.log('App ready');
 });
 
 app.on('before-quit', async (e) => {
   try {
     e.preventDefault();
-    // debugger;
     await socket.invoke('devices/goodbye', { serial: systemInfo.serial });
     app.exit();
   } catch (error) {
     console.error(error);
   }
 });
+
+const setupCronjobs = () => {
+  if (config.refreshCronExpression && config.refreshCronExpression.length > 0) {
+    new CronJob(
+      config.refreshCronExpression, // cronTime
+      function () {
+        actions.refresh();
+        console.log('refresh', new Date());
+      }, // onTick
+      null, // onComplete
+      true // start
+    );
+  }
+};

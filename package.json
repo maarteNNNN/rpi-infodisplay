@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cron": "^3.1.6",
     "electron": "^29.1.0",
     "ip": "^1.1.5",
     "jsonfile": "^6.1.0",

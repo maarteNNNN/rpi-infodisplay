@@ -146,6 +146,19 @@ sudo raspi-config
 
 System Options > Boot / Auto Login > Text console, automatically logged in as 'edugo' user
 
+## Cron HDMI on/off
+
+```
+$ crontab -e
+
+...
+
+# Every weekday at 17:00 HDMI off
+0 17 * * 1-5 DISPLAY=:0 xset dpms force off >/dev/null 2>&1
+# Every weekday at 8:00 HDMI on
+0 8 * * 1-5 DISPLAY=:0 xset dpms force on >/dev/null 2>&1
+```
+
 ## Audio set volume
 
 ```
@@ -160,6 +173,10 @@ $ pkill X
 
 ## TODO
 
-cron hdmi
+<!-- show info at boot for 15 secs -->
 
-show info at boot for 15 secs
+<!-- toggle info naar show 15 secs -->
+
+dns displays.edugolo.be >> my dev pc
+
+reload every hour?
