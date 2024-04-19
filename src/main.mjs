@@ -118,11 +118,28 @@ const socket = scClient.create({
 // Actions
 
 const actions = {
-  changeUrl: async (data) => {
-    mainWindow.loadURL(data.payload.url);
-    config.url = data.payload.url;
+  saveProps: async (data) => {
+    config.name = data.payload.props.name;
+    config.location = data.payload.props.location;
+    config.url = data.payload.props.url;
+    config.zoomFactor = data.payload.props.zoomFactor;
     // JSON.parse(await readFile('./config.json', 'utf-8'));
     await writeFile('./config.json', JSON.stringify(config, null, 2), 'utf-8');
+
+    mainWindow.loadURL(data.payload.props.url);
+    mainWindow.webContents.setZoomFactor(data.payload.props.zoomFactor);
+    // Send device announcement
+    (async () => {
+      let result;
+      try {
+        result = await socket.invoke('devices/presence', {
+          systemInfo,
+          config,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    })();
   },
   refresh: () => {
     mainWindow.reload();
@@ -246,13 +263,13 @@ app.on('ready', async () => {
 });
 
 app.on('before-quit', async (e) => {
-  try {
-    e.preventDefault();
-    await socket.invoke('devices/goodbye', { serial: systemInfo.serial });
-    app.exit();
-  } catch (error) {
-    console.error(error);
-  }
+  // try {
+  //   e.preventDefault();
+  //   await socket.invoke('devices/goodbye', { serial: systemInfo.serial });
+  //   app.exit();
+  // } catch (error) {
+  //   console.error(error);
+  // }
 });
 
 const setupCronjobs = () => {

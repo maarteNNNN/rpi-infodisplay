@@ -102,6 +102,7 @@ rm -rf rpi-infodisplay && \
 git clone https://github.com/johancoppens/rpi-infodisplay.git && \
 cd rpi-infodisplay && \
 npm install
+cp config.template.json config.json
 
 ```
 

@@ -2,8 +2,8 @@
   "name": "PC Johan",
   "location": "Helpdesk",
   "url": "https://display.edugolo.be",
-  "fullscreen": true,
-  "frame": false,
+  "fullscreen": false,
+  "frame": true,
   "zoomFactor": 1,
   "controller": "displays.edugolo.be:8000",
   "refreshCronExpression": "0 0 * * * *"
