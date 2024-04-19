@@ -79,7 +79,7 @@ const socket = scClient.create({
     // Subscribe to private channel, where actions can be tranmitted to
     (async () => {
       for await (let data of socket.subscribe(
-        `devices/channel:${systemInfo.serial}`
+        `devices/channel:${systemInfo.serial}`,
       )) {
         console.log(data);
         try {
@@ -173,7 +173,7 @@ const createMainWindow = () => {
     frame: config.frame ?? false,
     // focusable: false, // On Linux: false makes the window stop interacting with wm, so the window will always stay on top in all workspaces.
   });
-  // debugger;
+
   // mainWindow.setFullScreen(true);
   mainWindow.loadURL(config.url ?? 'https://edugolo.be');
 
@@ -184,6 +184,7 @@ const createMainWindow = () => {
   });
 
   mainWindow.on('ready-to-show', () => {
+    mainWindow.webContents.setZoomFactor(config.zoomFactor);
     setupCronjobs();
   });
 };
@@ -233,12 +234,12 @@ const setupCronjobs = () => {
   if (config.refreshCronExpression && config.refreshCronExpression.length > 0) {
     new CronJob(
       config.refreshCronExpression, // cronTime
-      function () {
+      function() {
         actions.refresh();
         console.log('refresh', new Date());
       }, // onTick
       null, // onComplete
-      true // start
+      true, // start
     );
   }
 };
