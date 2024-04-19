@@ -4,7 +4,7 @@
   "url": "https://display.edugolo.be",
   "fullscreen": true,
   "frame": false,
-  "zoomFactor": 1,
+  "zoomFactor": 1.6,
   "controller": "displays.edugolo.be:8000",
   "refreshCronExpression": "0 0 * * * *"
 }
