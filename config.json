@@ -1,9 +1,10 @@
 {
   "name": "",
   "location": "",
-  "url": "https://google.be",
-  "fullscreen": true,
-  "frame": false,
+  "url": "https://display.edugolo.be",
+  "fullscreen": false,
+  "frame": true,
+  "zoomFactor": 5,
   "controller": "displays.edugolo.be:8000",
   "refreshCronExpression": "0 0 * * * *"
 }

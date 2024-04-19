@@ -19,6 +19,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow = null;
 let infoWindow = null;
 
+// webFrame.setZoomFactor(1.5);
+
 // Utility functions
 
 const getSystemInfo = async () => {
@@ -79,6 +81,8 @@ const socket = scClient.create({
     // Subscribe to private channel, where actions can be tranmitted to
     (async () => {
       for await (let data of socket.subscribe(
+        // 'private'/<module>:<id>
+        // `devices/channel:${channel}`
         `devices/channel:${systemInfo.serial}`
       )) {
         console.log(data);
@@ -88,6 +92,7 @@ const socket = scClient.create({
           console.error(e);
         }
       }
+      console.log('subscribed from private channel');
     })();
   }
 })();
@@ -137,12 +142,32 @@ const actions = {
     const image = await mainWindow.webContents.capturePage();
     try {
       socket.transmitPublish(`devices/confirmationChannel:${data.messageId}`, {
-        message: 'confirmation ',
+        // message: 'confirmation ',
+        action: 'getScreenshot',
         image: image.toPNG(),
       });
       // debugger;
     } catch (error) {
-      console.log('here', error);
+      console.log(error);
+    }
+  },
+  ping: async (data) => {
+    console.log('ping action', data);
+    // const image = await mainWindow.webContents.capturePage();
+    try {
+      console.log(
+        'ping confirmation',
+        `devices/confirmationChannel:${data.messageId}`
+      );
+      socket.transmitPublish(`devices/confirmationChannel:${data.messageId}`, {
+        // message: 'confirmation ',
+        action: 'ping',
+        serial: data.payload.serial,
+        socket: socket.id,
+      });
+      // debugger;
+    } catch (error) {
+      console.log(error);
     }
   },
 };
@@ -184,6 +209,7 @@ const createMainWindow = () => {
   });
 
   mainWindow.on('ready-to-show', () => {
+    mainWindow.webContents.setZoomFactor(config.zoomFactor ?? 1);
     setupCronjobs();
   });
 };

@@ -77,11 +77,7 @@ $ npm --version
 ## Other Packages
 
 ```sh
-$ sudo apt install git
-$ sudo apt install libgtk-3-0
-$ sudo apt install upower
-$ sudo apt install pulseaudio
-
+$ sudo apt install git libgtk-3-0 upower pulseaudio
 ```
 
 ## Audio > HDMI
@@ -92,10 +88,11 @@ $ sudo raspi-config
 
 ```
 
-RPI 4: System Options > Audio > vc4-hdmi
-RPI 5: System Options > Audio > vc4-hdmi-0 or 1
+- RPI 3: System Options > Audio > vc4-hdmi
+- RPI 4: System Options > Audio > vc4-hdmi
+- RPI 5: System Options > Audio > vc4-hdmi-0 or 1
 
-HDMI0 is de poort naast USB-C
+HDMI0 is de poort naast USB-C on RPI 5
 
 ## Install / Update rpi-infodisplay
 
@@ -128,11 +125,18 @@ fi
 
 ```
 
+Query display on RPI over ssh:
+
+```
+$ xrandr -display :0.0 -q
+
+```
+
 Edit .xinitrc to start rpi-infodisplay when X starts
 
 ```
 $ nano ~/.xinitrc
-...sh
+...
 xrandr -s 1920x1080
 cd /home/edugo/rpi-infodisplay/
 exec npm run start
@@ -177,6 +181,6 @@ $ pkill X
 
 <!-- toggle info naar show 15 secs -->
 
-dns displays.edugolo.be >> my dev pc
+OK dns displays.edugolo.be >> my dev pc
 
-reload every hour?
+OK reload every hour?
