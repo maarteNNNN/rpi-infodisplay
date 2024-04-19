@@ -69,7 +69,7 @@ const socket = scClient.create({
     (async () => {
       let result;
       try {
-        result = await socket.invoke('devices/announce', {
+        result = await socket.invoke('devices/presence', {
           systemInfo,
           config,
         });
@@ -256,6 +256,24 @@ app.on('before-quit', async (e) => {
 });
 
 const setupCronjobs = () => {
+  // Reporting presence to server every 30 seconds
+  new CronJob(
+    '*/30 * * * * *',
+    async () => {
+      try {
+        await socket.invoke('devices/presence', {
+          systemInfo,
+          config,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    null,
+    true
+  );
+
+  // Auto refresh  in config
   if (config.refreshCronExpression && config.refreshCronExpression.length > 0) {
     new CronJob(
       config.refreshCronExpression, // cronTime
