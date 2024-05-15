@@ -57,6 +57,10 @@ const socket = scClient.create({
   },
 });
 
+setInterval(() => {
+  socket.transmit('device/heartbeat', { id: systemInfo.serial })
+}, 1000);
+
 (async () => {
   for await (const event of socket.listener('connect')) {
     console.log(`Connected to server with socket id ${socket.id}`);
