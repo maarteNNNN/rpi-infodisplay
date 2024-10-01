@@ -93,12 +93,16 @@ const actions = {
 const instance = new InstanceService(config, actions, socket)
 instance.connect();
 
+// NOT UNDERSTANDABLE BUT IF I DO IT BELOW IT DOESN'T WORK ON THE PI... SEE COMMENTED CODE
+const device = await InstanceService.systemInfo();
 
 // Shows Info for 10secs
 const showInfoWindow = async () => {
-  const device = await InstanceService.systemInfo()
+  // const device = await InstanceService.systemInfo()
+  // const device = {}
+  // const device = await getSystemInfo()
 
-  setInfoText(JSON.stringify({ config: config, device }, null, 2));
+  setInfoText(JSON.stringify({ config, device }, null, 2));
   infoWindow.show();
   setTimeout(() => {
     infoWindow.hide();
@@ -123,10 +127,6 @@ const createMainWindow = () => {
     // focusable: false, // On Linux: false makes the window stop interacting with wm, so the window will always stay on top in all workspaces.
   });
 
-  mainWindow.webContents.openDevTools();
-
-  // debugger;
-  // mainWindow.setFullScreen(true);
   mainWindow.loadURL(config.url ?? 'https://edugolo.be');
 
   // Hide cursor in webpage
@@ -157,7 +157,6 @@ const createInfoWindow = () => {
       contextIsolation: true,
     },
   });
-  infoWindow.webContents.openDevTools()
   infoWindow.loadFile(path.join(__dirname, 'info.html'));
   infoWindow.on('ready-to-show', () => {
     showInfoWindow();
@@ -167,6 +166,7 @@ const createInfoWindow = () => {
 app.commandLine.appendSwitch('disable-gpu');
 
 app.on('ready', async () => {
+
   createMainWindow();
   createInfoWindow();
   console.log('App ready');

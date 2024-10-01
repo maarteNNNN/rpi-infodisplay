@@ -151,7 +151,21 @@ sudo raspi-config
 
 System Options > Boot / Auto Login > Text console, automatically logged in as 'edugo' user
 
-## Cron HDMI on/off
+## CEC client
+
+```
+sudo apt install cec-utils
+```
+
+Test CEC display
+
+```
+echo 'scan' | cec-client -s -d 1
+```
+
+## Cron
+
+### Voor TV's zonder CEC
 
 ```
 $ crontab -e
@@ -162,6 +176,67 @@ $ crontab -e
 0 17 * * 1-5 DISPLAY=:0 xset dpms force off >/dev/null 2>&1
 # Every weekday at 8:00 HDMI on
 0 8 * * 1-5 DISPLAY=:0 xset dpms force on >/dev/null 2>&1
+```
+
+### Voor TV's met CEC
+
+```
+$ crontab -e
+
+...
+
+# Every weekday at 17:00. TV standby
+0 17 \* \* 1-5        echo 'standby 0.0.0.0' | cec-client -s -d 1 >/dev/null 2>&1
+
+# Every weekday at 8:00. TV on
+0 8 \* \* 1-5         echo 'on 0.0.0.0; as' | cec-client -s -d 1 >/dev/null 2>&1
+
+# Every 1 minute between 08:00 and 17:00 (17:00 excluded) on weekdays. Ensure active HDMI source (Also turns display on).
+* 8-16 * * 1-5  echo 'as' | cec-client -s -d 1 >/dev/null 2>&1
+
+```
+
+## Fixed IP
+
+In range 10.21.5.x/19
+
+Setting a fixed IP address on Raspberry Pi OS Lite
+
+```
+
+$ sudo nmtui
+
+```
+
+Edit connection > Wired connection 1 > IPv4 CONFIGURATION > Manual
+
+Addresses 10.21.5.x/19
+
+Gateway 10.21.0.1
+
+DNS servers 10.2.0.2
+
+OK > Back > Set system hostname
+
+rpi-d001-01
+
+OK > OK
+
+Quit
+
+Reboot
+
+```sh
+$ sudo reboot
+
+```
+
+Exit(Quit) and reboot
+
+Test configuration
+
+```
+ip addr show eth0
 ```
 
 ## Audio set volume
