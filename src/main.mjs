@@ -1,49 +1,16 @@
 import {
   app,
   BrowserWindow,
-  // dialog,
-  // ipcMain,
   screen,
-  // desktopCapturer,
-  // session,
 } from 'electron';
 import * as scClient from 'socketcluster-client';
-import * as sysInfo from 'systeminformation';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { readFile, writeFile } from 'node:fs/promises';
 import { CronJob } from 'cron';
+import InstanceService from './service.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-let mainWindow = null;
-let infoWindow = null;
-
-// webFrame.setZoomFactor(1.5);
-
-// Utility functions
-
-const getSystemInfo = async () => {
-  const si = await sysInfo.get({
-    cpu: 'manufacturer, brand, vendor, family, model, revision',
-    osInfo: 'platform, distro, release, codename, kernel, arch, serial', //'platform, release',
-    system: 'manufacturer, model',
-    networkInterfaces: 'iface, ifaceName, ip4, mac, type, default',
-  });
-  si.defaultNetworkInterface = si.networkInterfaces.find((iface) => {
-    return iface.default === true;
-  });
-  delete si.networkInterfaces;
-  return {
-    serial: si.osInfo.serial,
-    system: si,
-  };
-};
-
-const systemInfo = await getSystemInfo();
 const config = JSON.parse(await readFile('./config.json', 'utf-8'));
-
-// Socketcluster client setup
 
 const socket = scClient.create({
   host: config.controller ?? 'localhost:8000',
@@ -57,69 +24,10 @@ const socket = scClient.create({
   },
 });
 
-setInterval(() => {
-  socket.transmit('device/heartbeat', { id: systemInfo.serial })
-}, 1000);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-(async () => {
-  for await (const event of socket.listener('connect')) {
-    console.log(`Connected to server with socket id ${socket.id}`);
-    console.log(`Authenticated?: ${event.isAuthenticated}`);
-
-    if (!event.isAuthenticated) {
-    }
-
-    // Send device announcement
-    (async () => {
-      let result;
-      try {
-        result = await socket.invoke('devices/presence', {
-          systemInfo,
-          config,
-        });
-      } catch (error) {
-        console.error(error);
-      }
-    })();
-
-    // Subscribe to private channel, where actions can be tranmitted to
-    (async () => {
-      for await (let data of socket.subscribe(
-        // 'private'/<module>:<id>
-        // `devices/channel:${channel}`
-        `devices/channel:${systemInfo.serial}`
-      )) {
-        console.log(data);
-        try {
-          actions[data.action](data);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      console.log('subscribed from private channel');
-    })();
-  }
-})();
-
-(async () => {
-  for await (const event of socket.listener('disconnect')) {
-    console.log('Disconnected from server');
-  }
-})();
-
-(async () => {
-  for await (const event of socket.listener('authStateChange')) {
-    console.log(`authStateChange ${socket.id}`);
-  }
-})();
-
-(async () => {
-  for await (const event of socket.listener('error')) {
-    // console.log(event.error);
-  }
-})();
-
-// Actions
+let mainWindow = null;
+let infoWindow = null;
 
 const actions = {
   saveProps: async (data) => {
@@ -134,18 +42,6 @@ const actions = {
     mainWindow.webContents.setZoomFactor(
       parseFloat(data.payload.props.zoomFactor)
     );
-    // Send device announcement
-    (async () => {
-      let result;
-      try {
-        result = await socket.invoke('devices/presence', {
-          systemInfo,
-          config,
-        });
-      } catch (error) {
-        console.error(error);
-      }
-    })();
   },
   refresh: () => {
     mainWindow.reload();
@@ -161,10 +57,9 @@ const actions = {
     showInfoWindow();
   },
   getScreenshot: async (data) => {
-    console.log('getScreenshot', data);
     const image = await mainWindow.webContents.capturePage();
     try {
-      socket.transmitPublish(`devices/confirmationChannel:${data.messageId}`, {
+      socket.transmitPublish(`instance/confirmationChannel:${data.messageId}`, {
         // message: 'confirmation ',
         action: 'getScreenshot',
         image: image.toPNG(),
@@ -180,9 +75,9 @@ const actions = {
     try {
       console.log(
         'ping confirmation',
-        `devices/confirmationChannel:${data.messageId}`
+        `instance/confirmationChannel:${data.messageId}`
       );
-      socket.transmitPublish(`devices/confirmationChannel:${data.messageId}`, {
+      socket.transmitPublish(`instance/confirmationChannel:${data.messageId}`, {
         // message: 'confirmation ',
         action: 'ping',
         serial: data.payload.serial,
@@ -195,9 +90,15 @@ const actions = {
   },
 };
 
+const instance = new InstanceService(config, actions, socket)
+instance.connect();
+
+
 // Shows Info for 10secs
 const showInfoWindow = async () => {
-  setInfoText(JSON.stringify({ config: config, device: systemInfo }, null, 2));
+  const device = await InstanceService.systemInfo()
+
+  setInfoText(JSON.stringify({ config: config, device }, null, 2));
   infoWindow.show();
   setTimeout(() => {
     infoWindow.hide();
@@ -221,6 +122,9 @@ const createMainWindow = () => {
     frame: config.frame ?? false,
     // focusable: false, // On Linux: false makes the window stop interacting with wm, so the window will always stay on top in all workspaces.
   });
+
+  mainWindow.webContents.openDevTools();
+
   // debugger;
   // mainWindow.setFullScreen(true);
   mainWindow.loadURL(config.url ?? 'https://edugolo.be');
@@ -240,7 +144,6 @@ const createMainWindow = () => {
 const createInfoWindow = () => {
   infoWindow = new BrowserWindow({
     parent: mainWindow,
-    x: mainWindow.getBounds().x,
     y: mainWindow.getBounds().y,
     width: mainWindow.getBounds().width,
     height: mainWindow.getBounds().height,
@@ -254,6 +157,7 @@ const createInfoWindow = () => {
       contextIsolation: true,
     },
   });
+  infoWindow.webContents.openDevTools()
   infoWindow.loadFile(path.join(__dirname, 'info.html'));
   infoWindow.on('ready-to-show', () => {
     showInfoWindow();
@@ -279,28 +183,11 @@ app.on('before-quit', async (e) => {
 });
 
 const setupCronjobs = () => {
-  // Reporting presence to server every 30 seconds
-  new CronJob(
-    '*/30 * * * * *',
-    async () => {
-      try {
-        await socket.invoke('devices/presence', {
-          systemInfo,
-          config,
-        });
-      } catch (error) {
-        console.error(error);
-      }
-    },
-    null,
-    true
-  );
-
   // Auto refresh  in config
   if (config.refreshCronExpression && config.refreshCronExpression.length > 0) {
     new CronJob(
       config.refreshCronExpression, // cronTime
-      function () {
+      function() {
         actions.refresh();
         console.log('refresh', new Date());
       }, // onTick
