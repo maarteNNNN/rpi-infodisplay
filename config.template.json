@@ -6,5 +6,6 @@
   "frame": false,
   "zoomFactor": 1,
   "controller": "displays.edugolo.be:8000",
-  "refreshCronExpression": "0 0 * * * *"
+  "refreshCronExpression": "0 0 * * * *",
+  "type": "display"
 }
